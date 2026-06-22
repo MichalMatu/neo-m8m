@@ -8,8 +8,7 @@ This is the `module/max30100` branch. The module-free board baseline stays on
 
 The MAX30100 branch reads heart-rate and SpO2 values over the shared I2C bus,
 prints compact Serial Monitor diagnostics, and renders sensor state on the
-onboard OLED using only the first five rows because this board's bottom OLED
-line is damaged.
+onboard OLED with an expanded measurement view and a bottom status line.
 
 This firmware is for hobby diagnostics and development. It is not a medical
 device and its readings must not be used for health decisions.
@@ -190,14 +189,12 @@ If the sensor is detected but readings are not valid yet, the OLED shows:
 
 When readings are available, the OLED shows:
 
-- heart rate in BPM
-- SpO2 percentage
-- recent beat indicator
-- beat count
-- current red LED bias index
+- large BPM and SpO2 values side by side
+- recent beat indicator on the bottom status line
+- beat count on the bottom status line
+- current red LED bias index on the bottom status line
 
-All OLED screens use only the first five text rows to avoid the damaged bottom
-line on this board.
+The measurement screen uses the bottom OLED line for compact status data.
 
 ## Serial Monitor
 

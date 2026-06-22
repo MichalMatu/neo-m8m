@@ -81,25 +81,42 @@ void DisplayRenderer::renderWaitingFingerScreen(const Max30100Snapshot &snapshot
 
 void DisplayRenderer::renderMeasurementScreen(const Max30100Snapshot &snapshot)
 {
-    char line[24];
+    char bpmValue[8];
+    char spo2Value[8];
+    char statusLine[32];
+
+    if (snapshot.heartRateValid) {
+        const uint16_t bpm = static_cast<uint16_t>(snapshot.heartRateBpm + 0.5f);
+        snprintf(bpmValue, sizeof(bpmValue), "%u", bpm);
+    } else {
+        snprintf(bpmValue, sizeof(bpmValue), "--");
+    }
+
+    if (snapshot.spo2Valid) {
+        snprintf(spo2Value, sizeof(spo2Value), "%u", snapshot.spo2);
+    } else {
+        snprintf(spo2Value, sizeof(spo2Value), "--");
+    }
 
     I2cBus::lock();
     display_.clearBuffer();
+
     display_.setFont(u8g2_font_5x8_tf);
-    snprintf(line, sizeof(line), "BPM %5.1f",
-             snapshot.heartRateValid ? snapshot.heartRateBpm : 0.0f);
-    drawLine(0, line);
-    snprintf(line, sizeof(line), "SpO2 %3u%%",
-             snapshot.spo2Valid ? snapshot.spo2 : 0);
-    drawLine(1, line);
-    snprintf(line, sizeof(line), "Beat %s",
-             snapshot.freshBeat ? "*" : "-");
-    drawLine(2, line);
-    snprintf(line, sizeof(line), "Count %lu",
-             static_cast<unsigned long>(snapshot.beatCount));
-    drawLine(3, line);
-    snprintf(line, sizeof(line), "LED bias %u", snapshot.redLedCurrentBias);
-    drawLine(4, line);
+    display_.drawStr(0, 8, "bpm:");
+    display_.drawStr(72, 8, "spo2:");
+    display_.drawVLine(63, 0, 46);
+
+    display_.setFont(u8g2_font_logisoso22_tf);
+    display_.drawStr(0, 40, bpmValue);
+    display_.drawStr(72, 40, spo2Value);
+
+    display_.setFont(u8g2_font_5x8_tf);
+    display_.drawHLine(0, 51, 128);
+    snprintf(statusLine, sizeof(statusLine), "beat:%s cnt:%lu led:%u",
+             snapshot.freshBeat ? "*" : "-",
+             static_cast<unsigned long>(snapshot.beatCount),
+             snapshot.redLedCurrentBias);
+    display_.drawStr(0, 63, statusLine);
     display_.sendBuffer();
     I2cBus::unlock();
 }
