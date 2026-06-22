@@ -13,20 +13,29 @@ Planned module branch:
 
 ## Board Reference
 
-Target board:
+Target board is an ESP32 LOLIN32-style battery board. Use the seller page only
+as the purchase reference; it has a weak spec table. Better references for this
+board family are:
 
-- Product page: <https://probots.co.in/esp32-lolin32-wireless-development-board-wifi-bluetooth-battery-charger.html>
+- Seller page: <https://probots.co.in/esp32-lolin32-wireless-development-board-wifi-bluetooth-battery-charger.html>
+- WEMOS D32 documentation: <https://www.wemos.cc/en/latest/d32/d32.html>
+- Zephyr LOLIN32 Lite board docs: <https://github.com/zephyrproject-rtos/zephyr/blob/main/boards/wemos/lolin32_lite/doc/index.rst>
+- Arduino ESP32 `lolin32` pin variant: <https://github.com/espressif/arduino-esp32/blob/master/variants/lolin32/pins_arduino.h>
+
+Board summary from the WEMOS/Zephyr/Arduino references:
+
 - ESP32 LOLIN32 wireless development board
 - Wi-Fi and Bluetooth
 - 4 MB flash
-- LiPo battery interface through 2-pin JST
-- onboard USB battery charger
-- listed maximum charge current: 500 mA
+- LiPo battery interface through PH-2 / 2-pin JST-style connector
+- onboard USB battery charger; WEMOS D32 lists 500 mA max charging current
 - 3.3 V GPIO logic
-- 26 digital I/O pins
-- 12 analog I/O pins
-- listed clock speed: 240 MHz
-- listed PCB size: 58 mm x 25 mm
+- 240 MHz max clock
+- WEMOS D32 lists 57 mm x 25.4 mm board size
+- Arduino `lolin32` variant maps `LED_BUILTIN` and default `SS` to `GPIO5`
+- Arduino `lolin32` variant maps default I2C to `SDA=GPIO21`, `SCL=GPIO22`
+- Arduino `lolin32` variant maps default SPI to `SCK=GPIO18`,
+  `MISO=GPIO19`, `MOSI=GPIO23`
 
 The product page has one inconsistent line that says `Microcontroller: ESP8266`,
 but its title, description, and `Core Chipset` field identify the board as
@@ -39,6 +48,7 @@ reason to use them:
 
 - `GPIO1` / `GPIO3`: USB serial and upload
 - `GPIO6` - `GPIO11`: ESP32 flash
+- `GPIO5`: onboard LED / default SPI SS on the Arduino `lolin32` variant
 - `GPIO0`, `GPIO2`, `GPIO12`, `GPIO15`: bootstrapping pins
 - `GPIO34`, `GPIO35`, `GPIO36`, `GPIO39`: input only
 
