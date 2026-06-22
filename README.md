@@ -1,14 +1,14 @@
-# ESP Modules - LOLIN32 Battery Board
+# ESP Modules - LOLIN32 Battery OLED Buttons
 
-PlatformIO/Arduino base firmware for an ESP32 LOLIN32-style development board
-with Wi-Fi, Bluetooth, LiPo battery input, and onboard USB charging.
+PlatformIO/Arduino firmware branch for an ESP32 LOLIN32-style battery board
+with an external 0.96" SSD1306 I2C OLED module and four integrated buttons.
 
-This is the `board/esp32-lolin32-battery` branch. It is intentionally
-module-free and display-free. Sensor and peripheral variants should branch from
-this board baseline.
+This is the `module/oled-buttons-lolin32-battery` branch. It starts from the
+`board/esp32-lolin32-battery` baseline and is reserved for the OLED/button
+panel wiring and firmware.
 
-Future module branches should use the `module/<name>-lolin32-battery` naming
-pattern.
+Display/button pinout is intentionally left open until the actual wiring is
+chosen.
 
 ## Board Reference
 
@@ -40,6 +40,36 @@ The product page has one inconsistent line that says `Microcontroller: ESP8266`,
 but its title, description, and `Core Chipset` field identify the board as
 ESP32. This branch treats the board as ESP32.
 
+## OLED Button Module
+
+Module reference:
+
+- Product page: <https://mikrobot.pl/Modul-Wyswietlacz-OLED-096-bialy-I2C-SSD1306-plus-4-przyciski-do-Arduino>
+- 0.96" white OLED
+- 128 x 64 pixels
+- SSD1306 controller
+- I2C display interface
+- 3.3 V supply
+- four integrated programmable buttons
+- listed dimensions: 27.5 mm x 44.6 mm
+- listed weight: 11.5 g
+
+Planned wiring:
+
+| OLED/button module | LOLIN32 ESP32 |
+| --- | --- |
+| VCC / 3V3 | TBD |
+| GND | TBD |
+| SDA | TBD |
+| SCL | TBD |
+| Button 1 | TBD |
+| Button 2 | TBD |
+| Button 3 | TBD |
+| Button 4 | TBD |
+
+The Arduino `lolin32` variant uses `SDA=GPIO21` and `SCL=GPIO22` as default
+I2C pins, but this branch will follow the actual wiring used on the build.
+
 ## Pins To Avoid
 
 Avoid these ESP32 pins for add-on modules unless a module branch documents a
@@ -59,8 +89,9 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 
-The base firmware uses only Serial Monitor at `115200` and one periodic
-FreeRTOS diagnostics task.
+For now, this branch still uses only Serial Monitor at `115200` and one
+periodic FreeRTOS diagnostics task. OLED/button firmware will be added after
+the final pinout is known.
 
 ## Project Layout
 
