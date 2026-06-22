@@ -7,9 +7,8 @@ This is the `board/esp32-lolin32-battery` branch. It is intentionally
 module-free and display-free. Sensor and peripheral variants should branch from
 this board baseline.
 
-Planned module branch:
-
-- `module/ld2420-lolin32-battery`: HLK-LD2420 24 GHz presence radar over UART.
+Future module branches should use the `module/<name>-lolin32-battery` naming
+pattern.
 
 ## Board Reference
 
