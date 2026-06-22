@@ -1,11 +1,16 @@
-# ESP32 OLED GPS NEO-M8M
+# ESP32 Battery OLED
 
-PlatformIO/Arduino firmware for an ESP32 OLED 18650 board with an onboard 0.96" 128x64 I2C OLED and a u-blox NEO-M8M GPS module.
+PlatformIO/Arduino base firmware for an ESP32 18650 board with an onboard
+0.96" 128x64 I2C OLED.
 
-The project reads NMEA data from the GPS on ESP32 UART2, keeps the Serial
-Monitor readable with compact diagnostics, and renders the current GPS state on
-the onboard OLED using only the first five rows because this board's bottom OLED
-line is damaged.
+The `main` branch is intentionally module-free. It provides the shared board
+baseline: serial startup logs, OLED initialization, a simple status screen, and
+FreeRTOS task wiring. Sensor and peripheral variants should live on dedicated
+branches.
+
+Current module branches:
+
+- `module/gps`: u-blox NEO-M8M GPS over UART2 with TinyGPSPlus parsing and OLED diagnostics.
 
 ## Board Reference
 
@@ -53,23 +58,6 @@ Target board:
 - USB, 5 V, or 18650 power
 - 3.3 V GPIO logic
 
-GPS module:
-
-- GY-GPSV3-NEO / u-blox NEO-M8M
-- UART TTL NMEA
-- Firmware auto-detects common NMEA UART baud rates: `9600`, `38400`, `4800`, `19200`, `57600`, `115200`
-
-## Pinout
-
-GPS to ESP32:
-
-| GPS module | ESP32 |
-| --- | --- |
-| VCC | 3V3 |
-| GND | GND |
-| TX | GPIO26, ESP32 UART2 RX |
-| RX | GPIO25, ESP32 UART2 TX |
-
 Onboard OLED:
 
 | OLED | ESP32 |
@@ -77,15 +65,13 @@ Onboard OLED:
 | SDA | GPIO5 |
 | SCL | GPIO4 |
 
-Avoid these pins for GPS:
+Pins to avoid for add-on modules unless a branch documents otherwise:
 
 - `GPIO1` / `GPIO3`: USB serial and upload
 - `GPIO6` - `GPIO11`: ESP32 flash
 - `GPIO16`: onboard programmable LED on this board
 - `GPIO0`, `GPIO2`, `GPIO12`, `GPIO15`: bootstrapping pins
 - `GPIO34`, `GPIO35`, `GPIO36`, `GPIO39`: input only
-
-Do not feed 5 V logic into ESP32 RX/TX pins. Start with GPS `VCC` on `3V3`. If the GPS module does not start reliably and you power its `VCC` from `5V`, keep UART RX/TX at 3.3 V logic or use a level shifter.
 
 ## Build And Upload
 
@@ -95,117 +81,77 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 
-The firmware uses:
+The base firmware uses:
 
-- `HardwareSerial gpsSerial(2)`
-- GPS UART2: `RX=GPIO26`, `TX=GPIO25`
 - OLED I2C: `SDA=GPIO5`, `SCL=GPIO4`
 - Serial Monitor: `115200`
-- FreeRTOS tasks for GPS polling, OLED rendering, and diagnostics
+- FreeRTOS tasks for OLED rendering and periodic serial diagnostics
 
 ## Project Layout
 
 ```text
 include/
-  AppConfig.h          hardware pins, timings, task stack sizes and priorities
+  AppConfig.h          board pins, timings, task stack sizes and priorities
   AppTasks.h           FreeRTOS task bootstrap
   DiagnosticsLogger.h  Serial Monitor diagnostics API
   DisplayRenderer.h    OLED rendering API
-  GpsService.h         GPS UART/parser service API
-  GpsSnapshot.h        thread-safe GPS data snapshot shape
 src/
   AppTasks.cpp         task creation and task loops
   DiagnosticsLogger.cpp
   DisplayRenderer.cpp
-  GpsService.cpp
   main.cpp             Arduino setup/loop entrypoint
 lib/
-  TinyGPSPlus/         local vendored GPS parser
   U8g2/                local vendored OLED library
 ```
-
-`GpsService` is the only module that owns `TinyGPSPlus` and `HardwareSerial`.
-It publishes a `GpsSnapshot` behind a FreeRTOS mutex, so the OLED and diagnostics
-tasks never read parser internals while the GPS task is decoding NMEA.
 
 ## FreeRTOS Tasks
 
 | Task | Core | Priority | Period | Responsibility |
 | --- | ---: | ---: | ---: | --- |
-| `gps-uart` | 1 | 3 | 10 ms | Drain UART2, parse NMEA, publish snapshot |
-| `oled-render` | 1 | 2 | 500 ms | Render boot, diagnostic, waiting-fix, or fix screen |
-| `serial-diag` | 0 | 1 | 5000 ms | Print structured diagnostic lines |
+| `oled-render` | 1 | 2 | 500 ms | Render boot and base status screens |
+| `serial-diag` | 0 | 1 | 5000 ms | Print periodic heartbeat diagnostics |
 
 The Arduino `loop()` is intentionally idle and only calls `vTaskDelay()`.
 
 ## Local Libraries
 
-TinyGPSPlus and U8g2 are stored in `lib/`, so the project builds from local
-copies instead of downloading libraries into `.pio/libdeps`.
+U8g2 is stored in `lib/`, so the project builds from a local copy instead of
+downloading the library into `.pio/libdeps`.
 
-To refresh these libraries manually, temporarily add them back to `lib_deps`,
-run `pio run`, then copy the resolved packages from `.pio/libdeps/esp32dev/`
-into `lib/TinyGPSPlus` and `lib/U8g2`.
+To refresh U8g2 manually, temporarily add it back to `lib_deps`, run `pio run`,
+then copy the resolved package from `.pio/libdeps/esp32dev/` into `lib/U8g2`.
+
+Module branches may add their own local libraries when needed.
 
 ## OLED Screens
 
-At boot, the OLED shows a startup screen with GPS and OLED pin information.
+At boot, the OLED shows the repository baseline name, OLED pins, and Serial
+Monitor speed.
 
-If no NMEA bytes arrive after a few seconds, the OLED shows:
+After the boot screen, the OLED shows:
 
-- `NO GPS DATA`
-- RX/TX wiring hint
-- active baud probe/listen value
-- received character count
-
-If NMEA bytes are received but there is no valid fix yet, the OLED shows:
-
-- `WAIT FIX`
-- received character count
-- checksum diagnostics
-- HDOP
-- active baud rate
-
-When a fix is valid, the OLED shows:
-
-- FIX status, satellites, and HDOP
-- latitude and longitude
-- speed in km/h and altitude in meters
-- UTC time and date
+- base firmware ready status
+- uptime
+- OLED I2C pins
+- reminder that module variants live on branches
 
 All OLED screens use only the first five text rows to avoid the damaged bottom
 line on this board.
 
-## Serial Monitor
+## Branch Workflow
 
-The Serial Monitor prints startup/auto-baud messages and compact periodic
-diagnostic lines. Raw NMEA is disabled by default to keep the monitor readable.
+Use `main` as the starting point for a new hardware configuration:
 
-- detected GPS baud rate and no-data warnings
-- processed NMEA character count
-- passed and failed checksums
-- fix status
-- satellites and HDOP
-- coordinates, speed, and altitude when a fresh fix exists
+```sh
+git switch main
+git switch -c module/<name>
+```
 
-To temporarily inspect raw NMEA, set `AppConfig::SerialRawNmea` to `true` in `include/AppConfig.h`.
+Keep module-specific code, libraries, wiring notes, and troubleshooting in that
+module branch. When replacing an internal API or config shape inside a branch,
+migrate its current callers and remove the old path in the same change.
 
 ## Troubleshooting
-
-No GPS data:
-
-- Check that GPS `TX` goes to ESP32 `GPIO26`.
-- Check that GPS `RX` goes to ESP32 `GPIO25`.
-- Confirm common ground between ESP32 and GPS.
-- Watch Serial Monitor for `[gps] NMEA detected at ... baud` or `[gps] no NMEA detected during baud scan`.
-- Keep GPS away from USB cables, laptop chassis, and indoor obstructions while testing first fix.
-
-GPS data but no fix:
-
-- Move the antenna close to a window or outdoors.
-- Wait longer for cold start.
-- Confirm the antenna side has sky visibility.
-- Watch satellite count and HDOP in the Serial Monitor.
 
 OLED does not display:
 

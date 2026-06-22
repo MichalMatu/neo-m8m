@@ -5,45 +5,27 @@
 #include "AppConfig.h"
 #include "DiagnosticsLogger.h"
 #include "DisplayRenderer.h"
-#include "GpsService.h"
 
 namespace {
 
-GpsService gpsService;
 DisplayRenderer displayRenderer;
-
-void gpsTask(void *)
-{
-    for (;;) {
-        gpsService.poll();
-        vTaskDelay(pdMS_TO_TICKS(AppConfig::GpsTaskDelayMs));
-    }
-}
 
 void displayTask(void *)
 {
-    GpsSnapshot snapshot;
     TickType_t lastWake = xTaskGetTickCount();
 
     for (;;) {
-        if (gpsService.snapshot(snapshot)) {
-            displayRenderer.render(snapshot);
-        }
-
+        displayRenderer.render();
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::ScreenRefreshMs));
     }
 }
 
 void diagnosticsTask(void *)
 {
-    GpsSnapshot snapshot;
     TickType_t lastWake = xTaskGetTickCount();
 
     for (;;) {
-        if (gpsService.snapshot(snapshot)) {
-            DiagnosticsLogger::printSnapshot(snapshot);
-        }
-
+        DiagnosticsLogger::printHeartbeat();
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::DiagnosticLogMs));
     }
 }
@@ -71,18 +53,6 @@ bool startApplicationTasks()
     displayRenderer.begin();
     DiagnosticsLogger::printStartup();
 
-    if (!gpsService.begin()) {
-        Serial.println("[fatal] GPS service init failed");
-        return false;
-    }
-
-    const bool gpsCreated = createPinnedTask(
-        gpsTask,
-        "gps-uart",
-        AppConfig::GpsTaskStack,
-        AppConfig::GpsTaskPriority,
-        AppConfig::GpsTaskCore);
-
     const bool displayCreated = createPinnedTask(
         displayTask,
         "oled-render",
@@ -97,7 +67,7 @@ bool startApplicationTasks()
         AppConfig::DiagnosticsTaskPriority,
         AppConfig::DiagnosticsTaskCore);
 
-    if (!gpsCreated || !displayCreated || !diagnosticsCreated) {
+    if (!displayCreated || !diagnosticsCreated) {
         Serial.println("[fatal] FreeRTOS task creation failed");
         return false;
     }
