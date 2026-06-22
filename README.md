@@ -2,12 +2,15 @@
 
 PlatformIO/Arduino firmware branch for an ESP32 LOLIN32-style battery board
 with an external 0.96" SSD1306 I2C OLED module and four integrated buttons.
+This branch also adds an HLK-LD2420 presence radar over UART2 plus the OUT
+presence line.
 
 This is the `module/oled-buttons-lolin32-battery` branch. It starts from the
 `board/esp32-lolin32-battery` baseline and is reserved for the OLED/button
 panel wiring and firmware.
 
-The current firmware initializes the OLED and shows a simple button test screen.
+The current firmware initializes the OLED, reads the buttons, samples LD2420 OUT
+and UART, and shows presence status on the display.
 
 ## Board Reference
 
@@ -75,6 +78,22 @@ internal pull-ups. `GPIO34` and `GPIO35` are input-only pins and do not support
 internal pull-ups, so Button 1 and Button 2 need pull-ups on the OLED/button
 module or external pull-up resistors.
 
+## HLK-LD2420 Presence Radar
+
+The LD2420 is powered from 3.3 V and uses UART2 for serial data. Its OUT pin is
+used as the firmware presence signal: `HIGH` means presence detected.
+
+| LD2420 module | LOLIN32 ESP32 |
+| --- | --- |
+| VCC | 3V3 |
+| GND | GND |
+| UART TX | GPIO16 / RX2 |
+| UART RX | GPIO17 / TX2 |
+| OUT / presence | GPIO13 |
+
+UART is configured as `115200` baud, `8N1`. `GPIO13` is used for OUT instead of
+`GPIO15` because `GPIO15` is an ESP32 bootstrapping pin.
+
 ## Pins To Avoid
 
 Avoid these ESP32 pins for add-on modules unless a module branch documents a
@@ -98,8 +117,11 @@ The firmware uses:
 
 - OLED I2C: `SDA=GPIO25`, `SCL=GPIO26`
 - buttons: `B1=GPIO34`, `B2=GPIO35`, `B3=GPIO32`, `B4=GPIO33`
+- LD2420 UART2: `RX2=GPIO16`, `TX2=GPIO17`, `115200 8N1`
+- LD2420 OUT presence: `GPIO13`, `HIGH` means presence
 - Serial Monitor: `115200`
-- FreeRTOS tasks for OLED rendering and periodic serial diagnostics
+- FreeRTOS tasks for LD2420 polling, OLED rendering, and periodic serial
+  diagnostics
 
 ## Project Layout
 
@@ -109,10 +131,12 @@ include/
   AppTasks.h           FreeRTOS task bootstrap
   DiagnosticsLogger.h  Serial Monitor diagnostics API
   DisplayRenderer.h    OLED rendering API
+  Ld2420Sensor.h       LD2420 OUT and UART stats API
 src/
   AppTasks.cpp         task creation and task loops
   DiagnosticsLogger.cpp
   DisplayRenderer.cpp
+  Ld2420Sensor.cpp
   main.cpp             Arduino setup/loop entrypoint
 ```
 
@@ -120,10 +144,18 @@ src/
 
 | Task | Core | Priority | Period | Responsibility |
 | --- | ---: | ---: | ---: | --- |
-| `oled-render` | 1 | 2 | 250 ms | Render boot and button test screens |
+| `ld2420` | 0 | 2 | 20 ms | Poll OUT and drain UART2 bytes |
+| `oled-render` | 1 | 2 | 250 ms | Render boot, status, wiring, and detail screens |
 | `serial-diag` | 0 | 1 | 5000 ms | Print periodic heartbeat diagnostics |
 
 The Arduino `loop()` is intentionally idle and only calls `vTaskDelay()`.
+
+## OLED Controls
+
+- `B1`: previous screen
+- `B2`: next screen
+- `B3`: reset LD2420 UART statistics
+- `B4`: toggle status/details view
 
 ## Branch Workflow
 

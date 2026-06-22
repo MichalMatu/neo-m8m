@@ -5,10 +5,22 @@
 #include "AppConfig.h"
 #include "DiagnosticsLogger.h"
 #include "DisplayRenderer.h"
+#include "Ld2420Sensor.h"
 
 namespace {
 
-DisplayRenderer displayRenderer;
+Ld2420Sensor ld2420Sensor;
+DisplayRenderer displayRenderer(ld2420Sensor);
+
+void ld2420Task(void *)
+{
+    TickType_t lastWake = xTaskGetTickCount();
+
+    for (;;) {
+        ld2420Sensor.update();
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::Ld2420UpdateMs));
+    }
+}
 
 void displayTask(void *)
 {
@@ -25,7 +37,7 @@ void diagnosticsTask(void *)
     TickType_t lastWake = xTaskGetTickCount();
 
     for (;;) {
-        DiagnosticsLogger::printHeartbeat();
+        DiagnosticsLogger::printHeartbeat(ld2420Sensor);
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::DiagnosticLogMs));
     }
 }
@@ -50,8 +62,16 @@ bool createPinnedTask(TaskFunction_t task,
 
 bool startApplicationTasks()
 {
+    ld2420Sensor.begin();
     displayRenderer.begin();
     DiagnosticsLogger::printStartup();
+
+    const bool sensorCreated = createPinnedTask(
+        ld2420Task,
+        "ld2420",
+        AppConfig::Ld2420TaskStack,
+        AppConfig::Ld2420TaskPriority,
+        AppConfig::Ld2420TaskCore);
 
     const bool displayCreated = createPinnedTask(
         displayTask,
@@ -67,7 +87,7 @@ bool startApplicationTasks()
         AppConfig::DiagnosticsTaskPriority,
         AppConfig::DiagnosticsTaskCore);
 
-    if (!displayCreated || !diagnosticsCreated) {
+    if (!sensorCreated || !displayCreated || !diagnosticsCreated) {
         Serial.println("[fatal] FreeRTOS task creation failed");
         return false;
     }
