@@ -5,6 +5,12 @@
 
 Max30100Service *Max30100Service::activeService_ = nullptr;
 
+namespace {
+
+constexpr LEDCurrent Max30100IrLedCurrent = MAX30100_LED_CURR_24MA;
+
+} // namespace
+
 Max30100Service::Max30100Service() = default;
 
 bool Max30100Service::begin()
@@ -73,7 +79,7 @@ bool Max30100Service::initializeSensor()
 
     const bool ready = pulseOximeter_.begin();
     if (ready) {
-        pulseOximeter_.setIRLedCurrent(MAX30100_LED_CURR_7_6MA);
+        pulseOximeter_.setIRLedCurrent(Max30100IrLedCurrent);
         pulseOximeter_.setOnBeatDetectedCallback(handleBeatDetected);
         Serial.printf("[max30100] sensor detected at 0x%02X\n",
                       AppConfig::Max30100Address);

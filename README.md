@@ -219,7 +219,8 @@ No stable BPM or SpO2:
 - Keep the finger still and cover both LEDs and the detector.
 - Avoid strong ambient light hitting the sensor.
 - Wait several seconds for the beat detector and SpO2 calculator to stabilize.
-- Try lowering or raising LED current in `src/Max30100Service.cpp` if your breakout saturates or reads weakly.
+- IR LED current is set to `MAX30100_LED_CURR_24MA` in `src/Max30100Service.cpp`.
+- Lower it if readings saturate or raise it if finger detection is still weak.
 
 OLED does not display:
 
