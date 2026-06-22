@@ -4,21 +4,8 @@
 
 #include "AppConfig.h"
 #include "DiagnosticsLogger.h"
-#include "DisplayRenderer.h"
 
 namespace {
-
-DisplayRenderer displayRenderer;
-
-void displayTask(void *)
-{
-    TickType_t lastWake = xTaskGetTickCount();
-
-    for (;;) {
-        displayRenderer.render();
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::ScreenRefreshMs));
-    }
-}
 
 void diagnosticsTask(void *)
 {
@@ -50,15 +37,7 @@ bool createPinnedTask(TaskFunction_t task,
 
 bool startApplicationTasks()
 {
-    displayRenderer.begin();
     DiagnosticsLogger::printStartup();
-
-    const bool displayCreated = createPinnedTask(
-        displayTask,
-        "oled-render",
-        AppConfig::DisplayTaskStack,
-        AppConfig::DisplayTaskPriority,
-        AppConfig::DisplayTaskCore);
 
     const bool diagnosticsCreated = createPinnedTask(
         diagnosticsTask,
@@ -67,7 +46,7 @@ bool startApplicationTasks()
         AppConfig::DiagnosticsTaskPriority,
         AppConfig::DiagnosticsTaskCore);
 
-    if (!displayCreated || !diagnosticsCreated) {
+    if (!diagnosticsCreated) {
         Serial.println("[fatal] FreeRTOS task creation failed");
         return false;
     }
