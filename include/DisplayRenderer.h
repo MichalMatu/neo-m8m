@@ -19,4 +19,5 @@ private:
     void drawLine(uint8_t row, const char *text);
     void renderBootScreen();
     void renderStatusScreen();
+    void renderBatteryScreen();
 };

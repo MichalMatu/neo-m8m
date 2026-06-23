@@ -1,23 +1,19 @@
-# ESP32 Module Base
+# ESP32 MAX17048 Battery Monitor
 
-PlatformIO/Arduino base firmware for ESP32-family module experiments in VS Code.
-`main` is the shared starting point for future ESP32, ESP32-S3, and related
-board profiles. Concrete sensors and peripheral builds belong on module
-branches.
+PlatformIO/Arduino firmware for an ESP32 OLED board with an Adafruit MAX17048
+LiPo / LiIon fuel gauge.
 
-The baseline intentionally stays module-free. It provides:
+This branch is a concrete module build based on the shared `main` baseline. It
+keeps the baseline structure and adds:
 
 - a small Arduino entrypoint
 - a board hardware profile
-- OLED initialization and a simple status screen
+- OLED initialization and battery status screen
 - a multi-level logger
 - memory and stack diagnostics
 - explicit FreeRTOS task wiring
 - local vendored libraries for reproducible builds
-
-Current module branches:
-
-- `module/gps`: u-blox NEO-M8M GPS over UART2 with TinyGPSPlus parsing and OLED diagnostics.
+- MAX17048 battery monitoring on a dedicated I2C bus
 
 ## Board Reference
 
@@ -74,6 +70,21 @@ Active profile:
 | OLED SDA | GPIO5 |
 | OLED SCL | GPIO4 |
 | OLED rotation | `U8G2_R2` |
+| MAX17048 SDA | GPIO19 |
+| MAX17048 SCL | GPIO23 |
+| MAX17048 I2C clock | 100 kHz |
+
+MAX17048 wiring:
+
+| MAX17048 | ESP32 |
+| --- | --- |
+| VIN | 3V3 |
+| GND | GND |
+| SDA | GPIO19 |
+| SCL | GPIO23 |
+
+Connect a single-cell 3.7 V / 4.2 V LiPo or LiIon battery to the MAX17048
+battery connector. The MAX17048 module uses 3.3 V logic.
 
 Pins to avoid for add-on modules unless a branch documents otherwise:
 
@@ -132,18 +143,24 @@ include/
   AppConfig.h          application timings, task stack sizes, priorities
   AppLog.h             multi-level serial logger without Arduino String
   AppTasks.h           FreeRTOS task bootstrap
+  BatteryMonitor.h     MAX17048 FreeRTOS task state and diagnostics
   DiagnosticsLogger.h  Serial Monitor diagnostics API
   DisplayRenderer.h    OLED rendering API
   HardwareProfile.h    active board profile: pins, labels, display rotation
+  Max17048Monitor.h    MAX17048 driver wrapper
   MemoryDiagnostics.h  internal heap, PSRAM, and fragmentation telemetry
 src/
   AppLog.cpp
   AppTasks.cpp         task creation and task loops
+  BatteryMonitor.cpp
   DiagnosticsLogger.cpp
   DisplayRenderer.cpp
+  Max17048Monitor.cpp
   MemoryDiagnostics.cpp
   main.cpp             Arduino setup/loop entrypoint
 lib/
+  Adafruit_BusIO/      local vendored Adafruit BusIO dependency
+  Adafruit_MAX1704X/   local vendored MAX17048 library
   U8g2/                local vendored OLED library
 scripts/
   check_repo.py        repository policy regression checks
@@ -162,6 +179,7 @@ scripts/
 | --- | ---: | ---: | ---: | --- |
 | `oled-render` | 1 | 2 | 500 ms | Render boot and base status screens |
 | `serial-diag` | 0 | 1 | 5000 ms | Print periodic heartbeat diagnostics |
+| `battery-read` | 1 | 2 | 2000 ms | Read MAX17048 on a dedicated I2C bus |
 
 The Arduino `loop()` is intentionally idle and only calls `vTaskDelay()`.
 
@@ -170,7 +188,8 @@ The diagnostics task logs:
 - internal heap free bytes
 - internal heap largest free block, useful for fragmentation tracking
 - PSRAM availability and free/largest block when PSRAM is present and enabled
-- task stack high-water marks for the display and diagnostics tasks
+- task stack high-water marks for display, diagnostics, and battery tasks
+- MAX17048 status, voltage, state of charge, charge rate, alert flags, and sample age
 
 ## Memory And PSRAM Policy
 
@@ -208,15 +227,15 @@ board-specific, not global on `main`.
 
 ## Local Libraries
 
-U8g2 is stored in `lib/`, so the project builds from a local copy instead of
-downloading the library into `.pio/libdeps`. Keep dependencies vendored in
-`lib/` on `main`; module branches that add dependencies should vendor and
-document them in the same change.
+U8g2, Adafruit MAX1704X, and Adafruit BusIO are stored in `lib/`, so the project
+builds from local copies instead of downloading libraries into `.pio/libdeps`.
+This branch intentionally keeps `platformio.ini` free of `lib_deps`.
 
-To refresh U8g2 manually, temporarily add it back to `lib_deps`, run `pio run`,
-then copy the resolved package from `.pio/libdeps/esp32dev/` into `lib/U8g2`.
+Vendored library sources:
 
-Module branches may add their own local libraries when needed.
+- U8g2: <https://github.com/olikraus/u8g2>
+- Adafruit MAX1704X: <https://github.com/adafruit/Adafruit_MAX1704X>
+- Adafruit BusIO: <https://github.com/adafruit/Adafruit_BusIO>
 
 ## Engineering References
 
@@ -260,31 +279,20 @@ References:
 
 ## OLED Screens
 
-At boot, the OLED shows the repository baseline name, OLED pins, and Serial
-Monitor speed.
+At boot, the OLED shows the module name, MAX17048 I2C pins, OLED pins, and
+Serial Monitor speed.
 
 After the boot screen, the OLED shows:
 
-- base firmware ready status
-- uptime
-- OLED I2C pins
-- reminder that module variants live on branches
+- MAX17048 status
+- battery state of charge
+- battery voltage in millivolts
+- charge/discharge rate
+- alert byte
+- sample age
 
 All OLED screens use only the first five text rows to avoid the damaged bottom
 line on this board.
-
-## Branch Workflow
-
-Use `main` as the starting point for a new hardware configuration:
-
-```sh
-git switch main
-git switch -c module/<name>
-```
-
-Keep module-specific code, libraries, wiring notes, and troubleshooting in that
-module branch. When replacing an internal API or config shape inside a branch,
-migrate its current callers and remove the old path in the same change.
 
 ## Coding Rules
 

@@ -4,6 +4,7 @@
 
 #include "AppConfig.h"
 #include "AppLog.h"
+#include "BatteryMonitor.h"
 #include "DiagnosticsLogger.h"
 #include "DisplayRenderer.h"
 
@@ -13,6 +14,7 @@ constexpr const char *LogTag = "tasks";
 DisplayRenderer displayRenderer;
 TaskHandle_t displayHandle = nullptr;
 TaskHandle_t diagnosticsHandle = nullptr;
+TaskHandle_t batteryHandle = nullptr;
 
 void displayTask(void *)
 {
@@ -74,7 +76,15 @@ bool startApplicationTasks()
         AppConfig::DiagnosticsTaskCore,
         &diagnosticsHandle);
 
-    if (!displayCreated || !diagnosticsCreated) {
+    const bool batteryCreated = createPinnedTask(
+        BatteryMonitor::runTask,
+        "battery-read",
+        AppConfig::BatteryTaskStack,
+        AppConfig::BatteryTaskPriority,
+        AppConfig::BatteryTaskCore,
+        &batteryHandle);
+
+    if (!displayCreated || !diagnosticsCreated || !batteryCreated) {
         APP_LOGE(LogTag, "FreeRTOS task creation failed");
         return false;
     }
@@ -91,4 +101,9 @@ TaskHandle_t displayTaskHandle()
 TaskHandle_t diagnosticsTaskHandle()
 {
     return diagnosticsHandle;
+}
+
+TaskHandle_t batteryTaskHandle()
+{
+    return batteryHandle;
 }

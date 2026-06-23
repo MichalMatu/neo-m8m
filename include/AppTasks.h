@@ -5,3 +5,4 @@
 bool startApplicationTasks();
 TaskHandle_t displayTaskHandle();
 TaskHandle_t diagnosticsTaskHandle();
+TaskHandle_t batteryTaskHandle();

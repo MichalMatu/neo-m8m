@@ -5,6 +5,7 @@
 #include "AppConfig.h"
 #include "AppTasks.h"
 #include "AppLog.h"
+#include "BatteryMonitor.h"
 #include "HardwareProfile.h"
 #include "MemoryDiagnostics.h"
 
@@ -45,6 +46,7 @@ void printStartup()
              HardwareProfile::Oled.sdaPin,
              HardwareProfile::Oled.sclPin);
     APP_LOGI("startup", "Scheduler: FreeRTOS display and diagnostics tasks");
+    BatteryMonitor::logStartup();
     MemoryDiagnostics::printStartup();
 }
 
@@ -56,8 +58,10 @@ void printHeartbeat()
              HardwareProfile::Oled.sdaPin,
              HardwareProfile::Oled.sclPin);
     MemoryDiagnostics::printHeartbeat();
+    BatteryMonitor::logHeartbeat();
     printTaskStack("oled-render", displayTaskHandle());
     printTaskStack("serial-diag", diagnosticsTaskHandle());
+    printTaskStack("battery-read", batteryTaskHandle());
 }
 
 } // namespace DiagnosticsLogger
